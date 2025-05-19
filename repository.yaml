@@ -1,0 +1,5 @@
+name: Irrigation Control Add-on Repository
+url: https://github.com/goatboynz/ha-irrigation-control
+maintainer: Goat Boy NZ <github@goatboynz>
+slugs:
+  - irrigation_control: irrigation_control_addon

@@ -1,8 +1,8 @@
 # Home Assistant Irrigation Control Addon
 
 [![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-blue.svg)](https://www.home-assistant.io)
-[![License](https://img.shields.io/github/license/YOUR_USERNAME/ha-irrigation-control.svg)](LICENSE)
-[![Maintenance](https://img.shields.io/maintenance/yes/2025.svg)](https://github.com/YOUR_USERNAME/ha-irrigation-control/graphs/commit-activity)
+[![License](https://img.shields.io/github/license/goatboynz/ha-irrigation-control.svg)](LICENSE)
+[![Maintenance](https://img.shields.io/maintenance/yes/2025.svg)](https://github.com/goatboynz/ha-irrigation-control/graphs/commit-activity)
 
 Advanced irrigation control for Home Assistant with support for unlimited zones, P1/P2 event scheduling, and comprehensive watering management.
 
@@ -43,7 +43,7 @@ Advanced irrigation control for Home Assistant with support for unlimited zones,
 
 1. Add the repository to your Home Assistant instance:
    ```yaml
-   https://github.com/YOUR_USERNAME/ha-irrigation-control
+   https://github.com/goatboynz/ha-irrigation-control
    ```
 
 2. Install the addon through the Home Assistant Add-on Store
@@ -76,9 +76,9 @@ Storage:
 
 ## Support
 
-- [Open an issue](https://github.com/YOUR_USERNAME/ha-irrigation-control/issues)
+- [Open an issue](https://github.com/goatboynz/ha-irrigation-control/issues)
 - [Documentation](DOCS.md)
-- [Discussion Forum](https://github.com/YOUR_USERNAME/ha-irrigation-control/discussions)
+- [Discussion Forum](https://github.com/goatboynz/ha-irrigation-control/discussions)
 
 ## Contributing
 
@@ -96,7 +96,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Authors
 
-- **YOUR_NAME** - *Initial work* - [YOUR_USERNAME](https://github.com/YOUR_USERNAME)
+- **Goat Boy NZ** - *Initial work* - [goatboynz](https://github.com/goatboynz)
 
 ## Project Status
 

@@ -1,0 +1,53 @@
+Manual Repository Restructure Steps
+
+1. Create the addon directory:
+   - Create a new folder called "irrigation_control_addon" in your repository root
+
+2. Move these files to irrigation_control_addon/:
+   - Dockerfile
+   - requirements.txt
+   - run.sh
+   - apparmor.txt
+   - build.yaml
+   - config.yaml
+   - Move the entire "irrigation_control" folder
+   - Move the entire "rootfs" folder
+
+3. Create an addon-specific README:
+   - Create a new file "irrigation_control_addon/README.md"
+   - Add basic addon information
+
+4. Keep these files in the root:
+   - repository.yaml
+   - DOCS.md
+   - README.md (main)
+   - LICENSE
+   - CHANGELOG.md
+   - .gitignore
+
+5. Git commands to run after moving files:
+```
+git add .
+git commit -m "Restructure: Move addon files to subdirectory"
+git push origin main
+```
+
+The final structure should look like this:
+```
+ha-irrigation-control/
+├── .gitignore
+├── CHANGELOG.md
+├── DOCS.md
+├── LICENSE
+├── README.md
+├── repository.yaml
+└── irrigation_control_addon/
+    ├── Dockerfile
+    ├── README.md
+    ├── apparmor.txt
+    ├── build.yaml
+    ├── config.yaml
+    ├── irrigation_control/
+    ├── requirements.txt
+    ├── rootfs/
+    └── run.sh

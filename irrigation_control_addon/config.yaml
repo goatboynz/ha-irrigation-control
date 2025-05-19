@@ -2,7 +2,7 @@ name: "Irrigation Control"
 version: "0.1.0"
 slug: "irrigation_control"
 description: "Advanced irrigation scheduling and control with P1/P2 events and unlimited zones"
-url: "https://github.com/YOUR_USERNAME/ha-irrigation-control"
+url: "https://github.com/goatboynz/ha-irrigation-control"
 arch:
   - aarch64
   - amd64
