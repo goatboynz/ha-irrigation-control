@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Solenoids - Irrigation Control{% endblock %}
+
+{% block content %}
+<div class="solenoids-page">
+    <h1>Solenoid Management</h1>
+
+    <!-- Available Home Assistant Switches -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-switch"></i>
+            Available Home Assistant Switches
+        </h2>
+        <div id="ha-switches">
+            <p>Loading available switches...</p>
+        </div>
+    </div>
+
+    <!-- Mapped Solenoids -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-water"></i>
+            Mapped Solenoids
+        </h2>
+        <div id="mapped-solenoids">
+            <p>Loading mapped solenoids...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Track mapped entity IDs to prevent double-mapping
+        let mappedEntityIds = new Set();
+
+        // Load and display available HA switches
+        const switches = await API.getSwitches();
+        const switchesContainer = document.getElementById('ha-switches');
+        
+        // Load existing solenoids to track what's already mapped
+        const solenoidResponse = await API.getSolenoids();
+        const mappedSolenoidsContainer = document.getElementById('mapped-solenoids');
+        
+        if (solenoidResponse.success) {
+            // Track mapped entities
+            solenoidResponse.data.forEach(solenoid => {
+                mappedEntityIds.add(solenoid.entity_id);
+            });
+
+            // Display mapped solenoids
+            if (solenoidResponse.data.length > 0) {
+                mappedSolenoidsContainer.innerHTML = `
+                    <div class="list-group">
+                        ${solenoidResponse.data.map(solenoid => `
+                            <div class="list-item">
+                                <div class="solenoid-info">
+                                    <strong>${solenoid.name}</strong>
+                                    <small>${solenoid.entity_id}</small>
+                                </div>
+                                <div class="actions">
+                                    <button class="btn btn-primary control-solenoid" 
+                                            data-id="${solenoid.id}" 
+                                            data-action="turn_on">
+                                        <i class="mdi mdi-power"></i> On
+                                    </button>
+                                    <button class="btn btn-danger control-solenoid" 
+                                            data-id="${solenoid.id}" 
+                                            data-action="turn_off">
+                                        <i class="mdi mdi-power"></i> Off
+                                    </button>
+                                    <button class="btn btn-danger delete-item" 
+                                            data-type="solenoid"
+                                            data-id="${solenoid.id}">
+                                        <i class="mdi mdi-delete"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                mappedSolenoidsContainer.innerHTML = '<p>No solenoids mapped yet.</p>';
+            }
+        }
+
+        // Display available switches (excluding already mapped ones)
+        if (switches && switches.length > 0) {
+            const unmappedSwitches = switches.filter(s => !mappedEntityIds.has(s.entity_id));
+            if (unmappedSwitches.length > 0) {
+                switchesContainer.innerHTML = `
+                    <div class="list-group">
+                        ${unmappedSwitches.map(switch_ => `
+                            <div class="list-item">
+                                <div class="switch-info">
+                                    <strong>${switch_.name}</strong>
+                                    <small>${switch_.entity_id}</small>
+                                </div>
+                                <button class="btn btn-primary map-switch" 
+                                        data-entity-id="${switch_.entity_id}"
+                                        data-name="${switch_.name}">
+                                    <i class="mdi mdi-plus"></i> Map as Solenoid
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                // Add event listeners for mapping switches
+                document.querySelectorAll('.map-switch').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const entityId = button.dataset.entityId;
+                        const name = button.dataset.name;
+                        
+                        try {
+                            const response = await API.createSolenoid({
+                                entity_id: entityId,
+                                name: name,
+                                is_active: true
+                            });
+
+                            if (response.success) {
+                                showAlert('Solenoid mapped successfully', 'success');
+                                // Refresh the page to update both lists
+                                window.location.reload();
+                            }
+                        } catch (error) {
+                            // Error already handled by API.request
+                        }
+                    });
+                });
+            } else {
+                switchesContainer.innerHTML = '<p>All available switches are already mapped.</p>';
+            }
+        } else {
+            switchesContainer.innerHTML = '<p>No switches found in Home Assistant.</p>';
+        }
+
+    } catch (error) {
+        showAlert('Error loading solenoid data', 'danger');
+    }
+});
+</script>
+
+<style>
+.solenoids-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.solenoid-info, .switch-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.solenoid-info small, .switch-info small {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+}
+
+h2 .mdi {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

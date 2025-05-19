@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}Schedules - Irrigation Control{% endblock %}
+
+{% block content %}
+<div class="schedules-page">
+    <h1>Irrigation Schedules</h1>
+
+    <!-- Create/Edit Schedule Form -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-calendar-plus"></i>
+            <span id="form-title">Create New Schedule</span>
+        </h2>
+        <form id="schedule-form">
+            <input type="hidden" id="schedule-id">
+            <div class="form-group">
+                <label for="schedule-name">Schedule Name</label>
+                <input type="text" id="schedule-name" name="name" required
+                       placeholder="Enter schedule name">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="target-type">Target Type</label>
+                    <select id="target-type" name="target_type" required>
+                        <option value="solenoid">Single Solenoid</option>
+                        <option value="group">Zone Group</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="target-id">Target</label>
+                    <select id="target-id" name="target_id" required>
+                        <option value="">Select a target</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="schedule-enabled" name="is_enabled" checked>
+                    Enable Schedule
+                </label>
+            </div>
+
+            <div class="time-slots-section">
+                <div class="section-header">
+                    <h3>Time Slots</h3>
+                    <button type="button" class="btn btn-secondary add-time-slot">
+                        <i class="mdi mdi-plus"></i>
+                        Add Time Slot
+                    </button>
+                </div>
+                <div class="time-slots">
+                    <!-- Time slots will be added here -->
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="mdi mdi-content-save"></i>
+                    Save Schedule
+                </button>
+                <button type="button" class="btn btn-secondary" id="reset-form">
+                    <i class="mdi mdi-refresh"></i>
+                    Reset
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Existing Schedules -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-calendar-clock"></i>
+            Existing Schedules
+        </h2>
+        <div id="schedules-list">
+            <p>Loading schedules...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const form = document.getElementById('schedule-form');
+    const formTitle = document.getElementById('form-title');
+    const resetButton = document.getElementById('reset-form');
+    const targetTypeSelect = document.getElementById('target-type');
+    const targetIdSelect = document.getElementById('target-id');
+    let editingScheduleId = null;
+
+    // Update target options based on selected type
+    async function updateTargetOptions() {
+        const type = targetTypeSelect.value;
+        try {
+            const response = type === 'solenoid' 
+                ? await API.getSolenoids()
+                : await API.getGroups();
+
+            if (response.success) {
+                targetIdSelect.innerHTML = `
+                    <option value="">Select a ${type}</option>
+                    ${response.data.map(item => `
+                        <option value="${item.id}">${item.name}</option>
+                    `).join('')}
+                `;
+            }
+        } catch (error) {
+            showAlert(`Error loading ${type}s`, 'danger');
+        }
+    }
+
+    // Load and display existing schedules
+    async function loadSchedules() {
+        try {
+            const response = await API.getSchedules();
+            const schedulesList = document.getElementById('schedules-list');
+            
+            if (response.success && response.data.length > 0) {
+                schedulesList.innerHTML = `
+                    <div class="list-group">
+                        ${response.data.map(schedule => `
+                            <div class="list-item ${!schedule.is_enabled ? 'disabled' : ''}">
+                                <div class="schedule-info">
+                                    <strong>${schedule.name}</strong>
+                                    <small>
+                                        ${schedule.target_type}: 
+                                        ${schedule.solenoid?.name || schedule.group?.name}
+                                    </small>
+                                </div>
+                                <div class="schedule-slots">
+                                    ${schedule.time_slots.map(slot => `
+                                        <div class="schedule-slot">
+                                            <i class="mdi mdi-clock-outline"></i>
+                                            ${formatTime(slot.start_time)} 
+                                            (${slot.duration_minutes}min)
+                                            <br>
+                                            <small>${slot.days_of_week}</small>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="actions">
+                                    <button class="btn btn-primary run-schedule" 
+                                            data-id="${schedule.id}">
+                                        <i class="mdi mdi-play"></i>
+                                        Run Now
+                                    </button>
+                                    <button class="btn btn-secondary edit-schedule"
+                                            data-id="${schedule.id}">
+                                        <i class="mdi mdi-pencil"></i>
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-danger delete-item"
+                                            data-type="schedule"
+                                            data-id="${schedule.id}">
+                                        <i class="mdi mdi-delete"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                // Add edit handlers
+                document.querySelectorAll('.edit-schedule').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const scheduleId = button.dataset.id;
+                        editSchedule(response.data.find(s => s.id == scheduleId));
+                    });
+                });
+            } else {
+                schedulesList.innerHTML = '<p>No schedules created yet.</p>';
+            }
+        } catch (error) {
+            showAlert('Error loading schedules', 'danger');
+        }
+    }
+
+    // Initialize form for editing
+    async function editSchedule(schedule) {
+        editingScheduleId = schedule.id;
+        document.getElementById('schedule-id').value = schedule.id;
+        document.getElementById('schedule-name').value = schedule.name;
+        document.getElementById('target-type').value = schedule.target_type;
+        document.getElementById('schedule-enabled').checked = schedule.is_enabled;
+        formTitle.textContent = 'Edit Schedule';
+
+        await updateTargetOptions();
+        document.getElementById('target-id').value = 
+            schedule.target_type === 'solenoid' ? schedule.solenoid_id : schedule.group_id;
+
+        // Clear existing time slots
+        document.querySelector('.time-slots').innerHTML = '';
+        
+        // Add each time slot
+        schedule.time_slots.forEach(slot => {
+            addTimeSlot(slot);
+        });
+
+        // Scroll to form
+        form.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Add a new time slot row
+    function addTimeSlot(data = null) {
+        const slotsContainer = document.querySelector('.time-slots');
+        const row = document.createElement('div');
+        row.className = 'time-slot-row';
+        row.innerHTML = createTimeSlotRow();
+        slotsContainer.appendChild(row);
+
+        if (data) {
+            const inputs = row.querySelectorAll('input');
+            inputs[0].value = data.start_time;
+            inputs[1].value = data.duration_minutes;
+            const days = data.days_of_week.split(',');
+            row.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = days.includes(checkbox.value);
+            });
+        }
+    }
+
+    // Reset form
+    function resetForm() {
+        editingScheduleId = null;
+        form.reset();
+        document.getElementById('schedule-id').value = '';
+        formTitle.textContent = 'Create New Schedule';
+        document.querySelector('.time-slots').innerHTML = '';
+        addTimeSlot();  // Add one empty time slot
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Gather time slots data
+        const timeSlots = [...document.querySelectorAll('.time-slot-row')].map(row => {
+            const startTime = row.querySelector('input[name="start_time"]').value;
+            const duration = parseInt(row.querySelector('input[name="duration_minutes"]').value);
+            const days = [...row.querySelectorAll('.days-of-week input:checked')]
+                .map(cb => cb.value)
+                .join(',');
+            
+            return {
+                start_time: startTime,
+                duration_minutes: duration,
+                days_of_week: days
+            };
+        });
+
+        const formData = new FormData(form);
+        const data = {
+            name: formData.get('name'),
+            target_type: formData.get('target_type'),
+            target_id: parseInt(formData.get('target_id')),
+            is_enabled: formData.get('is_enabled') === 'on',
+            time_slots: timeSlots
+        };
+
+        try {
+            let response;
+            if (editingScheduleId) {
+                response = await API.updateSchedule(editingScheduleId, data);
+            } else {
+                response = await API.createSchedule(data);
+            }
+
+            if (response.success) {
+                showAlert(
+                    `Schedule ${editingScheduleId ? 'updated' : 'created'} successfully`, 
+                    'success'
+                );
+                resetForm();
+                await loadSchedules();
+            }
+        } catch (error) {
+            // Error already handled by API.request
+        }
+    });
+
+    // Event Handlers
+    targetTypeSelect.addEventListener('change', updateTargetOptions);
+    resetButton.addEventListener('click', resetForm);
+    document.querySelector('.add-time-slot').addEventListener('click', () => addTimeSlot());
+
+    // Handle remove slot button clicks (delegated)
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('.remove-slot')) {
+            const row = e.target.closest('.time-slot-row');
+            const container = row.parentElement;
+            row.remove();
+            // Ensure at least one slot remains
+            if (container.children.length === 0) {
+                addTimeSlot();
+            }
+        }
+    });
+
+    // Initial setup
+    await updateTargetOptions();
+    await loadSchedules();
+    resetForm();  // Add initial empty time slot
+});
+</script>
+
+<style>
+.schedules-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input[type="text"],
+.form-group select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h3 {
+    margin: 0;
+}
+
+.time-slot-row {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.days-of-week {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.days-of-week label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(255,255,255,0.5);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.list-item {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.list-item.disabled {
+    opacity: 0.6;
+}
+
+.schedule-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.schedule-info small {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.schedule-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.schedule-slot {
+    background: rgba(0,0,0,0.05);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+}
+
+h2 .mdi {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

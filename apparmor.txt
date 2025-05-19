@@ -1,0 +1,49 @@
+#include <tunables/global>
+
+profile irrigation_control flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/python>
+
+  # Allow network access
+  network inet tcp,
+  network inet udp,
+
+  # Access to /data directory for database and config
+  /data/** rw,
+  /data/db/** rw,
+
+  # Python files access
+  /usr/src/app/** r,
+  /usr/src/app/*.py mr,
+  /usr/src/app/**/*.py mr,
+
+  # System access
+  /usr/bin/python3 ix,
+  /bin/bash ix,
+  /bin/echo ix,
+  /usr/bin/env ix,
+  /usr/bin/which ix,
+
+  # Python packages
+  /usr/local/lib/python3.** r,
+  /usr/local/lib/python3.**/**.{so,h} mr,
+  /usr/local/lib/python3.**/**.py{,c,o} mr,
+  
+  # Allow Home Assistant API access
+  /usr/share/hassio/homeassistant/** rw,
+
+  # S6-Overlay
+  /init ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/** mrwkl,
+  /dev/tty rw,
+
+  # Capabilities
+  capability net_bind_service,
+  capability dac_override,
+}

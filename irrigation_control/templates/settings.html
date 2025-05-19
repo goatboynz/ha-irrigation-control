@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Irrigation Control{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <h1>Addon Settings</h1>
+
+    <!-- System Status -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-heart-pulse"></i>
+            System Status
+        </h2>
+        <div id="system-status">
+            <p>Loading system status...</p>
+        </div>
+    </div>
+
+    <!-- Version Information -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-information"></i>
+            Version Information
+        </h2>
+        <div id="version-info">
+            <p>Loading version information...</p>
+        </div>
+    </div>
+
+    <!-- System Limits -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-gauge"></i>
+            System Limits
+        </h2>
+        <div id="system-limits">
+            <p>Loading system limits...</p>
+        </div>
+    </div>
+
+    <!-- Configuration Note -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-cog"></i>
+            Configuration
+        </h2>
+        <p class="info-text">
+            <i class="mdi mdi-information-outline"></i>
+            Settings can be configured through the Home Assistant Addon Configuration page.
+        </p>
+        <a href="/hassio/addon/local_irrigation_control/configuration" 
+           target="_blank" 
+           class="btn btn-primary">
+            <i class="mdi mdi-cog"></i>
+            Open Addon Configuration
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Load system status
+        const statusResponse = await fetch('/api/settings/status');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.success) {
+            const status = statusData.data;
+            document.getElementById('system-status').innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value ${status.status === 'healthy' ? 'success' : 'error'}">
+                            <i class="mdi ${status.status === 'healthy' ? 'mdi-check-circle' : 'mdi-alert-circle'}"></i>
+                            ${status.status}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Supervisor Token</div>
+                        <div class="info-value ${status.supervisor_token ? 'success' : 'error'}">
+                            <i class="mdi ${status.supervisor_token ? 'mdi-check-circle' : 'mdi-alert-circle'}"></i>
+                            ${status.supervisor_token ? 'Available' : 'Missing'}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Database</div>
+                        <div class="info-value ${status.database_url ? 'success' : 'error'}">
+                            <i class="mdi ${status.database_url ? 'mdi-check-circle' : 'mdi-alert-circle'}"></i>
+                            ${status.database_url ? 'Connected' : 'Not Connected'}
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Scheduler Database</div>
+                        <div class="info-value ${status.scheduler_url ? 'success' : 'error'}">
+                            <i class="mdi ${status.scheduler_url ? 'mdi-check-circle' : 'mdi-alert-circle'}"></i>
+                            ${status.scheduler_url ? 'Connected' : 'Not Connected'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load version information
+        const versionResponse = await fetch('/api/settings/version');
+        const versionData = await versionResponse.json();
+        
+        if (versionData.success) {
+            const version = versionData.data;
+            document.getElementById('version-info').innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Version</div>
+                        <div class="info-value">${version.version}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Application</div>
+                        <div class="info-value">${version.app_name}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load system limits
+        const limitsResponse = await fetch('/api/settings/limits');
+        const limitsData = await limitsResponse.json();
+        
+        if (limitsData.success) {
+            const limits = limitsData.data;
+            document.getElementById('system-limits').innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Maximum Zones</div>
+                        <div class="info-value">${limits.max_zones}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Minimum Duration</div>
+                        <div class="info-value">${limits.min_duration} minutes</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Maximum Duration</div>
+                        <div class="info-value">${limits.max_duration} minutes</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Maximum Concurrent Jobs</div>
+                        <div class="info-value">${limits.max_instances}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+    } catch (error) {
+        showAlert('Error loading settings', 'danger');
+    }
+});
+</script>
+
+<style>
+.settings-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.info-item {
+    padding: 1rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+}
+
+.info-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.info-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.info-value.success {
+    color: var(--success-color);
+}
+
+.info-value.error {
+    color: var(--danger-color);
+}
+
+.info-text {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+}
+
+h2 .mdi {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

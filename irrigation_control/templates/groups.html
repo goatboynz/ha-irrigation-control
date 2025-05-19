@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Zone Groups - Irrigation Control{% endblock %}
+
+{% block content %}
+<div class="groups-page">
+    <h1>Zone Groups</h1>
+
+    <!-- Create/Edit Group Form -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-playlist-plus"></i>
+            <span id="form-title">Create New Group</span>
+        </h2>
+        <form id="group-form">
+            <input type="hidden" id="group-id">
+            <div class="form-group">
+                <label for="group-name">Group Name</label>
+                <input type="text" id="group-name" name="name" required
+                       placeholder="Enter group name">
+            </div>
+            <div class="form-group">
+                <label>Select Solenoids</label>
+                <div id="solenoid-selection" class="checkbox-grid">
+                    <p>Loading solenoids...</p>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="mdi mdi-content-save"></i>
+                    Save Group
+                </button>
+                <button type="button" class="btn btn-secondary" id="reset-form">
+                    <i class="mdi mdi-refresh"></i>
+                    Reset
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Existing Groups -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-format-list-group"></i>
+            Existing Groups
+        </h2>
+        <div id="groups-list">
+            <p>Loading groups...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const form = document.getElementById('group-form');
+    const formTitle = document.getElementById('form-title');
+    const resetButton = document.getElementById('reset-form');
+    let editingGroupId = null;
+
+    // Load solenoids for the selection checkboxes
+    async function loadSolenoids() {
+        try {
+            const response = await API.getSolenoids();
+            if (response.success && response.data.length > 0) {
+                const selectionDiv = document.getElementById('solenoid-selection');
+                selectionDiv.innerHTML = response.data.map(solenoid => `
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="solenoid_ids[]" 
+                               value="${solenoid.id}">
+                        ${solenoid.name}
+                        <small>${solenoid.entity_id}</small>
+                    </label>
+                `).join('');
+            } else {
+                document.getElementById('solenoid-selection').innerHTML = 
+                    '<p>No solenoids available. Please add some solenoids first.</p>';
+            }
+        } catch (error) {
+            showAlert('Error loading solenoids', 'danger');
+        }
+    }
+
+    // Load and display existing groups
+    async function loadGroups() {
+        try {
+            const response = await API.getGroups();
+            const groupsList = document.getElementById('groups-list');
+            
+            if (response.success && response.data.length > 0) {
+                groupsList.innerHTML = `
+                    <div class="list-group">
+                        ${response.data.map(group => `
+                            <div class="list-item">
+                                <div class="group-info">
+                                    <strong>${group.name}</strong>
+                                    <small>${group.solenoids.length} solenoids</small>
+                                </div>
+                                <div class="group-solenoids">
+                                    ${group.solenoids.map(s => `
+                                        <span class="solenoid-tag">${s.name}</span>
+                                    `).join('')}
+                                </div>
+                                <div class="actions">
+                                    <button class="btn btn-secondary edit-group"
+                                            data-id="${group.id}">
+                                        <i class="mdi mdi-pencil"></i>
+                                        Edit
+                                    </button>
+                                    <button class="btn btn-danger delete-item"
+                                            data-type="group"
+                                            data-id="${group.id}">
+                                        <i class="mdi mdi-delete"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                // Add edit handlers
+                document.querySelectorAll('.edit-group').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const groupId = button.dataset.id;
+                        editGroup(response.data.find(g => g.id == groupId));
+                    });
+                });
+            } else {
+                groupsList.innerHTML = '<p>No groups created yet.</p>';
+            }
+        } catch (error) {
+            showAlert('Error loading groups', 'danger');
+        }
+    }
+
+    // Initialize form for editing
+    function editGroup(group) {
+        editingGroupId = group.id;
+        document.getElementById('group-id').value = group.id;
+        document.getElementById('group-name').value = group.name;
+        formTitle.textContent = 'Edit Group';
+
+        // Check solenoid checkboxes
+        const solenoidIds = group.solenoids.map(s => s.id);
+        document.querySelectorAll('input[name="solenoid_ids[]"]').forEach(checkbox => {
+            checkbox.checked = solenoidIds.includes(parseInt(checkbox.value));
+        });
+
+        // Scroll to form
+        form.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Reset form
+    function resetForm() {
+        editingGroupId = null;
+        form.reset();
+        document.getElementById('group-id').value = '';
+        formTitle.textContent = 'Create New Group';
+        document.querySelectorAll('input[name="solenoid_ids[]"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const data = {
+            name: formData.get('name'),
+            solenoid_ids: [...formData.getAll('solenoid_ids[]')].map(id => parseInt(id)),
+            is_active: true
+        };
+
+        try {
+            let response;
+            if (editingGroupId) {
+                response = await API.updateGroup(editingGroupId, data);
+            } else {
+                response = await API.createGroup(data);
+            }
+
+            if (response.success) {
+                showAlert(
+                    `Group ${editingGroupId ? 'updated' : 'created'} successfully`, 
+                    'success'
+                );
+                resetForm();
+                await loadGroups();
+            }
+        } catch (error) {
+            // Error already handled by API.request
+        }
+    });
+
+    // Reset button handler
+    resetButton.addEventListener('click', resetForm);
+
+    // Initial load
+    await loadSolenoids();
+    await loadGroups();
+});
+</script>
+
+<style>
+.groups-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.checkbox-item small {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.list-item {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.group-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.group-info small {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.group-solenoids {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.solenoid-tag {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+}
+
+h2 .mdi {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

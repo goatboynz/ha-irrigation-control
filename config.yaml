@@ -1,0 +1,40 @@
+name: "Irrigation Control"
+version: "0.1.0"
+slug: "irrigation_control"
+description: "Advanced irrigation scheduling and control with P1/P2 events and unlimited zones"
+url: "https://github.com/YOUR_USERNAME/ha-irrigation-control"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+init: false
+startup: application
+boot: auto
+ingress: true
+ingress_port: 8000
+panel_icon: "mdi:sprinkler-variant"
+panel_title: "Irrigation Control"
+panel_admin: true
+homeassistant_api: true
+hassio_api: false
+hassio_role: default
+map:
+  - "data:rw"
+options:
+  log_level: "info"
+  p1_enabled: true
+  p2_enabled: true
+  p1_max_slots: 50
+  p2_max_slots: 50
+  timezone: "UTC"
+  max_concurrent_zones: 3
+schema:
+  log_level: "list(trace|debug|info|warning|error|fatal)"
+  p1_enabled: "bool"
+  p2_enabled: "bool"
+  p1_max_slots: "int(1,100)"
+  p2_max_slots: "int(1,100)"
+  timezone: "str?"
+  max_concurrent_zones: "int(1,10)"
+apparmor: true
+image: "ghcr.io/{arch}-addon-irrigation-control"

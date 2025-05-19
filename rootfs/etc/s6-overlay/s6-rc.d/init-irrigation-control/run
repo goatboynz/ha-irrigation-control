@@ -1,0 +1,23 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Initialize directories and permissions for Irrigation Control
+# ==============================================================================
+
+bashio::log.info "Initializing Irrigation Control..."
+
+# Ensure required directories exist
+mkdir -p \
+    /data \
+    /data/db \
+    /usr/src/app
+
+# Set correct permissions
+chown -R abc:abc \
+    /data \
+    /data/db \
+    /usr/src/app
+
+# Set correct permissions for S6 service script
+chmod a+x /etc/s6-overlay/s6-rc.d/irrigation_control/run
+
+bashio::log.info "Initialization completed successfully"

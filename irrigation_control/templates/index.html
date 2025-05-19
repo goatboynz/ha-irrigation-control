@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Irrigation Control{% endblock %}
+
+{% block content %}
+<h1>Irrigation Dashboard</h1>
+
+<div class="grid">
+    <!-- Active Solenoids -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-water"></i>
+            Solenoids
+        </h2>
+        <div id="solenoids-list">
+            <p>Loading solenoids...</p>
+        </div>
+    </div>
+
+    <!-- Zone Groups -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-format-list-group"></i>
+            Zone Groups
+        </h2>
+        <div id="groups-list">
+            <p>Loading groups...</p>
+        </div>
+    </div>
+
+    <!-- Active Schedules -->
+    <div class="card">
+        <h2>
+            <i class="mdi mdi-calendar-clock"></i>
+            Active Schedules
+        </h2>
+        <div id="schedules-list">
+            <p>Loading schedules...</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Load solenoids
+        const solenoidResponse = await API.getSolenoids();
+        const solenoidsList = document.getElementById('solenoids-list');
+        if (solenoidResponse.success && solenoidResponse.data.length > 0) {
+            solenoidsList.innerHTML = `
+                <div class="list-group">
+                    ${solenoidResponse.data.map(solenoid => `
+                        <div class="list-item">
+                            <span>${solenoid.name}</span>
+                            <div class="actions">
+                                <button class="btn btn-primary control-solenoid" 
+                                        data-id="${solenoid.id}" 
+                                        data-action="turn_on">
+                                    <i class="mdi mdi-power"></i> On
+                                </button>
+                                <button class="btn btn-danger control-solenoid" 
+                                        data-id="${solenoid.id}" 
+                                        data-action="turn_off">
+                                    <i class="mdi mdi-power"></i> Off
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            solenoidsList.innerHTML = '<p>No solenoids configured. <a href="/solenoids">Add some now</a></p>';
+        }
+
+        // Load groups
+        const groupResponse = await API.getGroups();
+        const groupsList = document.getElementById('groups-list');
+        if (groupResponse.success && groupResponse.data.length > 0) {
+            groupsList.innerHTML = `
+                <div class="list-group">
+                    ${groupResponse.data.map(group => `
+                        <div class="list-item">
+                            <span>${group.name}</span>
+                            <small>${group.solenoids.length} solenoids</small>
+                            <div class="actions">
+                                <a href="/groups/${group.id}" class="btn btn-secondary">
+                                    <i class="mdi mdi-pencil"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            groupsList.innerHTML = '<p>No groups configured. <a href="/groups">Create a group</a></p>';
+        }
+
+        // Load schedules
+        const scheduleResponse = await API.getSchedules();
+        const schedulesList = document.getElementById('schedules-list');
+        if (scheduleResponse.success && scheduleResponse.data.length > 0) {
+            schedulesList.innerHTML = `
+                <div class="list-group">
+                    ${scheduleResponse.data.filter(s => s.is_enabled).map(schedule => `
+                        <div class="list-item">
+                            <span>${schedule.name}</span>
+                            <div class="schedule-info">
+                                <small>
+                                    ${schedule.time_slots.length} time slot(s)
+                                </small>
+                            </div>
+                            <div class="actions">
+                                <button class="btn btn-primary run-schedule" 
+                                        data-id="${schedule.id}">
+                                    <i class="mdi mdi-play"></i> Run Now
+                                </button>
+                                <a href="/schedules/${schedule.id}" class="btn btn-secondary">
+                                    <i class="mdi mdi-pencil"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            schedulesList.innerHTML = '<p>No active schedules. <a href="/schedules">Create a schedule</a></p>';
+        }
+    } catch (error) {
+        showAlert('Error loading dashboard data', 'danger');
+    }
+});
+</script>
+
+<style>
+.list-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.03);
+    border-radius: 4px;
+}
+
+.list-item > span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.list-item small {
+    color: #666;
+    margin-right: 1rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.schedule-info {
+    text-align: right;
+    margin-right: 1rem;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0;
+}
+
+h2 .mdi {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,26 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Start the Irrigation Control service
+# ==============================================================================
+
+bashio::log.info "Starting Irrigation Control..."
+
+# Get the log level from the addon config
+CONFIG_LOG_LEVEL=$(bashio::config 'log_level')
+export LOG_LEVEL="${CONFIG_LOG_LEVEL:-info}"
+
+bashio::log.info "Using log level: ${LOG_LEVEL}"
+
+# Change to the app directory
+cd /usr/src/app || bashio::exit.nok "Could not change to app directory"
+
+# Initialize the database (if not already done)
+python3 database_setup.py || bashio::exit.nok "Database initialization failed"
+
+# Start the FastAPI application with uvicorn
+exec python3 -m uvicorn main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --log-level "${LOG_LEVEL}" \
+    --proxy-headers \
+    --forwarded-allow-ips "*"
